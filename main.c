@@ -68,12 +68,29 @@ HANDLE setup_serial(const char *portname)
 void send_message(HANDLE hSerial, const char *message)
 {
     DWORD bytes_written;
+    char buffer[256];
+    snprintf(buffer, sizeof(buffer), "%s\n", message); // Adiciona uma nova linha ao final da mensagem
+
+    // Escreve a mensagem na porta serial
+    if (!WriteFile(hSerial, buffer, strlen(buffer), &bytes_written, NULL))
+    {
+        printf("Error: ao enviar mensagem\n");
+    }
+    else
+    {
+        printf("Mensagem enviada: %s\n", buffer);
+    }
+}
+/*void send_message(HANDLE hSerial, const char *message)3
+
+{
+    DWORD bytes_written;
     // Escreve a mensagem na porta serial
     if (!WriteFile(hSerial, message, strlen(message), &bytes_written, NULL))
     {
         printf("Error: ao enviar mensagem\n");
     }
-}
+}*/
 
 // Função para ler uma mensagem do Arduino
 void read_message(HANDLE hSerial)
@@ -81,10 +98,10 @@ void read_message(HANDLE hSerial)
     char buffer[256];
     DWORD bytes_read;
     // Lê a mensagem da porta serial
-    if (ReadFile(hSerial, buffer, sizeof(buffer) - 1, &bytes_read, NULL))
+    if (ReadFile(hSerial, buffer, sizeof(buffer), &bytes_read, NULL))
     {
         buffer[bytes_read] = '\0'; // Adiciona um terminador nulo para formar uma string válida
-        printf("Recebido: %s\n", buffer);
+        printf("Recebido: %s", buffer);
     }
     else
     {
@@ -96,8 +113,8 @@ void read_message(HANDLE hSerial)
 void tela_principal()
 {
     printf("========================================\n");
-    printf("        Sistema de Comunicação          \n");
-    printf("          Nome dos Integrantes          \n");
+    printf("        Sistema de Comunicacao          \n");
+    printf("         QUARTETO FANTASTICO            \n");
     printf("========================================\n");
     printf("Pressione Enter para continuar...");
     getchar(); // Aguarda o usuário pressionar Enter
@@ -110,7 +127,7 @@ void tela_escolha()
     printf("1. PC\n");
     printf("2. Arduino\n");
     printf("3. Voltar\n");
-    printf("Escolha uma opção: ");
+    printf("Escolha uma opcao: ");
 }
 
 // Função para enviar uma mensagem do PC para o Arduino
