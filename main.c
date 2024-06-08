@@ -1,4 +1,5 @@
 /* BIBLIOTECA ---------------- MAIN.C  */
+// teste
 #include <stdio.h>
 #include "comunicacao.h"
 
