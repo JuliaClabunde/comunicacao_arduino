@@ -131,18 +131,12 @@ void enviar_mensagem_pc(HANDLE hSerial)
 }
 
 // Função para receber uma mensagem do Arduino para o PC
+/*
 void receber_mensagem_arduino(HANDLE hSerial)
 {
     printf("Aguardando mensagem do Arduino...\n");
     while (1)
     {
-        // Verifica se uma tecla foi pressionada
-        if (_kbhit())
-        {
-            getchar(); // Lê a tecla pressionada
-            break;     // Sai do loop se qualquer tecla for pressionada
-        }
-
         DWORD bytes_read;
         char buffer[256];
         // Lê a mensagem da porta serial se houver dados disponíveis
@@ -153,7 +147,20 @@ void receber_mensagem_arduino(HANDLE hSerial)
                 read_message(hSerial); // Exibe a mensagem recebida
             }
         }
+        // Verifica se uma tecla foi pressionada
+        if (_kbhit())
+        {
+            getchar(); // Lê a tecla pressionada
+            break;     // Sai do loop se qualquer tecla for pressionada
+        }
     }
+}*/
+
+// Função para receber uma mensagem do Arduino para o PC
+void receber_mensagem_arduino(HANDLE hSerial)
+{
+    printf("Aguardando mensagem do Arduino...\n");
+    read_message(hSerial); // Lê a mensagem do Arduino
 }
 
 int main()
