@@ -1,4 +1,4 @@
-/* BIBLIOTECA ---------------- COMUNICAÇÃO.H  */
+/* BIBLIOTECA ---------------- COMUNICAÇÃO.H */
 #ifndef comunicacao_h
 #define comunicacao_h
 #include <windows.h>
