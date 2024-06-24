@@ -1,50 +1,114 @@
-/* BIBLIOTECA -------------- COMUNICAÇÃO.H  */
+/* BIBLIOTECA ---------------- COMUNICAÇÃO.C */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <windows.h>
 #include "comunicacao.h"
 
-// Função para configurar a porta serial
-SerialHandle setup_serial(const char *portname)
-{
-    // Abre a porta serial especificada (portname)
-    SerialHandle hSerial = CreateFile(portname, GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+ListaEncadeada *lista_mensagens = NULL;
 
-    // Verifica se a porta foi aberta com sucesso
-    if (hSerial == INVALID_HANDLE_VALUE)
+// Função para criar uma nova lista encadeada
+ListaEncadeada *criar_lista()
+{
+    ListaEncadeada *lista = (ListaEncadeada *)malloc(sizeof(ListaEncadeada));
+    if (lista != NULL)
     {
-        if (GetLastError() == ERROR_FILE_NOT_FOUND)
+        lista->cabeca = NULL;
+        lista->tamanho = 0;
+    }
+    return lista;
+}
+
+// Função para adicionar uma mensagem à lista encadeada
+void adicionar_mensagem(ListaEncadeada *lista, const char *mensagem)
+{
+    No *novo_no = (No *)malloc(sizeof(No));
+    if (novo_no != NULL)
+    {
+        novo_no->mensagem = strdup(mensagem); // Copia a mensagem
+        novo_no->proximo = NULL;
+
+        if (lista->cabeca == NULL)
         {
-            printf("Error: Porta %s não encontrada\n", portname);
+            lista->cabeca = novo_no;
         }
         else
         {
-            printf("Error: ao abrir porta %s\n", portname);
+            No *temp = lista->cabeca;
+            while (temp->proximo != NULL)
+            {
+                temp = temp->proximo;
+            }
+            temp->proximo = novo_no;
+        }
+        lista->tamanho++;
+    }
+}
+
+// Função para imprimir todas as mensagens da lista encadeada
+void imprimir_mensagens(const ListaEncadeada *lista)
+{
+    No *atual = lista->cabeca;
+    while (atual != NULL)
+    {
+        printf("Mensagem: %s\n", atual->mensagem);
+        atual = atual->proximo;
+    }
+}
+
+// Função para liberar a memória usada pela lista encadeada
+void liberar_lista(ListaEncadeada *lista)
+{
+    No *atual = lista->cabeca;
+    while (atual != NULL)
+    {
+        No *temp = atual;
+        atual = atual->proximo;
+        free(temp->mensagem);
+        free(temp);
+    }
+    free(lista);
+}
+
+ManipuladorSerial configurar_serial(const char *nome_porta)
+{
+    // Abre a porta serial especificada (nome_porta)
+    ManipuladorSerial manipulador = CreateFile(nome_porta, GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+
+    // Verifica se a porta foi aberta com sucesso
+    if (manipulador == INVALID_HANDLE_VALUE)
+    {
+        if (GetLastError() == ERROR_FILE_NOT_FOUND)
+        {
+            printf("Erro: Porta %s não encontrada\n", nome_porta);
+        }
+        else
+        {
+            printf("Erro: ao abrir porta %s\n", nome_porta);
         }
         return INVALID_HANDLE_VALUE;
     }
 
     // Configura os parâmetros da porta serial
-    DCB dcbSerialParams = {0};
-    dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
+    DCB parametros_serial = {0};
+    parametros_serial.DCBlength = sizeof(parametros_serial);
 
-    if (!GetCommState(hSerial, &dcbSerialParams))
+    if (!GetCommState(manipulador, &parametros_serial))
     {
-        printf("Error: ao obter parâmetros da porta serial\n");
-        CloseHandle(hSerial);
+        printf("Erro: ao obter parâmetros da porta serial\n");
+        CloseHandle(manipulador);
         return INVALID_HANDLE_VALUE;
     }
 
-    dcbSerialParams.BaudRate = CBR_9600;   // Configura a taxa de transmissão
-    dcbSerialParams.ByteSize = 8;          // Configura o tamanho dos dados (8 bits)
-    dcbSerialParams.StopBits = ONESTOPBIT; // Configura um bit de parada
-    dcbSerialParams.Parity = NOPARITY;     // Sem paridade
+    parametros_serial.BaudRate = CBR_9600;   // Configura a taxa de transmissão
+    parametros_serial.ByteSize = 8;          // Configura o tamanho dos dados (8 bits)
+    parametros_serial.StopBits = ONESTOPBIT; // Configura um bit de parada
+    parametros_serial.Parity = NOPARITY;     // Sem paridade
 
-    if (!SetCommState(hSerial, &dcbSerialParams))
+    if (!SetCommState(manipulador, &parametros_serial))
     {
-        printf("Error: ao configurar parâmetros da porta serial\n");
-        CloseHandle(hSerial);
+        printf("Erro: ao configurar parâmetros da porta serial\n");
+        CloseHandle(manipulador);
         return INVALID_HANDLE_VALUE;
     }
 
@@ -56,35 +120,35 @@ SerialHandle setup_serial(const char *portname)
     timeouts.WriteTotalTimeoutConstant = 50;
     timeouts.WriteTotalTimeoutMultiplier = 10;
 
-    if (!SetCommTimeouts(hSerial, &timeouts))
+    if (!SetCommTimeouts(manipulador, &timeouts))
     {
-        printf("Error: ao configurar timeouts da porta serial\n");
-        CloseHandle(hSerial);
+        printf("Erro: ao configurar timeouts da porta serial\n");
+        CloseHandle(manipulador);
         return INVALID_HANDLE_VALUE;
     }
 
-    return hSerial; // Retorna o identificador da porta serial configurada
+    return manipulador; // Retorna o identificador da porta serial configurada
 }
 
 // Função para enviar uma mensagem para o Arduino
-void send_message(SerialHandle hSerial, const char *message)
+void enviar_mensagem(ManipuladorSerial manipulador, const char *mensagem)
 {
-    DWORD bytes_written;
-    size_t message_len = strlen(message) + 2; // Inclui espaço para o '\n' e o '\0'
-    char *buffer = (char *)malloc(message_len * sizeof(char));
+    DWORD bytes_escritos;
+    size_t tamanho_mensagem = strlen(mensagem) + 2; // Inclui espaço para o '\n' e o '\0'
+    char *buffer = (char *)malloc(tamanho_mensagem * sizeof(char));
 
     if (buffer == NULL)
     {
-        printf("Error: memória insuficiente\n");
+        printf("Erro: memoria insuficiente\n");
         return;
     }
 
-    snprintf(buffer, message_len, "%s\n", message); // Adiciona uma nova linha ao final da mensagem
+    snprintf(buffer, tamanho_mensagem, "%s\n", mensagem); // Adiciona uma nova linha ao final da mensagem
 
     // Escreve a mensagem na porta serial
-    if (!WriteFile(hSerial, buffer, strlen(buffer), &bytes_written, NULL))
+    if (!WriteFile(manipulador, buffer, strlen(buffer), &bytes_escritos, NULL))
     {
-        printf("Error: ao enviar mensagem\n");
+        printf("Erro: ao enviar mensagem\n");
     }
     else
     {
@@ -95,68 +159,86 @@ void send_message(SerialHandle hSerial, const char *message)
 }
 
 // Função para ler uma mensagem do Arduino
-void read_message(SerialHandle hSerial)
+void ler_mensagem(ManipuladorSerial manipulador)
 {
-    DWORD bytes_read;
+    DWORD bytes_lidos;
     char buffer[256];
     // Lê a mensagem da porta serial
-    if (ReadFile(hSerial, buffer, sizeof(buffer) - 1, &bytes_read, NULL))
+    if (ReadFile(manipulador, buffer, sizeof(buffer) - 1, &bytes_lidos, NULL))
     {
-        buffer[bytes_read] = '\0'; // Adiciona um terminador nulo para formar uma string válida
+        buffer[bytes_lidos] = '\0'; // Adiciona um terminador nulo para formar uma string válida
 
         // Aloca memória dinamicamente para a mensagem lida
-        char *message = (char *)malloc((bytes_read + 1) * sizeof(char));
-        if (message == NULL)
+        char *mensagem = (char *)malloc((bytes_lidos + 1) * sizeof(char));
+        if (mensagem == NULL)
         {
-            printf("Error: memória insuficiente\n");
+            printf("Erro: memória insuficiente\n");
             return;
         }
-        strncpy(message, buffer, bytes_read + 1);
+        strncpy(mensagem, buffer, bytes_lidos + 1);
 
-        printf("Recebido: %s", message);
+        printf("Recebido: %s", mensagem);
 
-        free(message); // Libera a memória alocada
+        // Adicionar mensagem à lista encadeada
+        adicionar_mensagem(lista_mensagens, mensagem);
+
+        free(mensagem); // Libera a memória alocada
     }
     else
     {
-        printf("Error: ao ler mensagem\n");
+        printf("Erro: ao ler mensagem\n");
     }
 }
 
 // Função que exibe a tela principal do sistema
-void tela_principal()
+void exibir_tela_principal()
 {
     printf("========================================\n");
-    printf("        Sistema de Comunicacao          \n");
-    printf("         QUARTETO FANTASTICO            \n");
+    printf("         Sistema de Comunicacao         \n");
+    printf("    ₊˚⊹✧˖°   TRIO DE OURO   ₊˚⊹✧˖°    \n");
     printf("========================================\n");
     printf("Pressione Enter para continuar...");
-    getchar(); // Aguarda o usuário pressionar Enter
+    getchar();
 }
 
 // Função que exibe o menu de escolha do dispositivo
-void tela_escolha()
+void exibir_menu_escolha()
 {
     printf("\nEscolha quem irá enviar a mensagem:\n");
     printf("1. PC\n");
     printf("2. Arduino\n");
-    printf("3. Voltar\n");
+    printf("3. Mostrar lista de mensagens anteriores\n");
+    printf("4. Sair\n");
     printf("Escolha uma opcao: ");
 }
 
 // Função para enviar uma mensagem do PC para o Arduino
-void enviar_mensagem_pc(SerialHandle hSerial)
+void enviar_mensagem_pc(ManipuladorSerial manipulador)
 {
-    char message[17];
+    char mensagem[17];
     printf("Digite sua mensagem (máx 16 caracteres): ");
-    scanf(" %16s", message);        // Lê a mensagem do usuário (máximo de 16 caracteres)
-    send_message(hSerial, message); // Envia a mensagem para o Arduino
+    scanf(" %16s", mensagem);               // Lê a mensagem do usuário (máximo de 16 caracteres)
+    enviar_mensagem(manipulador, mensagem); // Envia a mensagem para o Arduino
     printf("Mensagem enviada para o Arduino.\n");
 }
 
 // Função para receber uma mensagem do Arduino para o PC
-void receber_mensagem_arduino(SerialHandle hSerial)
+void receber_mensagem_arduino(ManipuladorSerial manipulador)
 {
     printf("Aguardando mensagem do Arduino...\n");
-    read_message(hSerial); // Lê a mensagem do Arduino
+    ler_mensagem(manipulador); // Lê a mensagem do Arduino
+}
+
+// Função para mostrar mensagens recebidas
+void mostrar_mensagens()
+{
+    if (lista_mensagens != NULL && lista_mensagens->tamanho > 0)
+    {
+        printf("\nMensagens recebidas:\n");
+        imprimir_mensagens(lista_mensagens); // Imprime as mensagens da lista encadeada
+    }
+    else
+    {
+        printf("\nNenhuma mensagem recebida.\n");
+    }
 }

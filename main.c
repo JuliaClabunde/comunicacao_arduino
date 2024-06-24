@@ -1,42 +1,50 @@
-/* BIBLIOTECA ---------------- MAIN.C  */
-// teste
 #include <stdio.h>
+#include <windows.h>
 #include "comunicacao.h"
 
 int main()
 {
-    char *portname = "COM3";                       // Nome da porta serial
-    SerialHandle hSerial = setup_serial(portname); // Configura a porta serial
-    if (hSerial == INVALID_HANDLE_VALUE)
+    ManipuladorSerial manipulador;
+    char nome_porta[] = "COM3"; // Nome da porta serial (ajuste conforme necessário)
+    int opcao;
+
+    lista_mensagens = criar_lista();
+
+    exibir_tela_principal();
+
+    manipulador = configurar_serial(nome_porta);
+    if (manipulador == INVALID_HANDLE_VALUE)
     {
-        return 1; // Sai do programa se a configuração da porta serial falhar
+        return 1; // Sai do programa se a porta serial não puder ser aberta
     }
 
-    char choice;
-
-    tela_principal(); // Exibe a tela principal
-
-    // Loop principal do programa
-    while (1)
+    do
     {
-        tela_escolha();        // Exibe o menu de escolha do dispositivo
-        scanf(" %c", &choice); // Lê a escolha do usuário
+        exibir_menu_escolha();
+        scanf("%d", &opcao);
+        getchar(); // Limpa o buffer de entrada
 
-        switch (choice - '0')
+        switch (opcao)
         {
         case OPC_PC:
-            enviar_mensagem_pc(hSerial); // Envia uma mensagem do PC para o Arduino
+            enviar_mensagem_pc(manipulador);
             break;
         case OPC_ARDUINO:
-            receber_mensagem_arduino(hSerial); // Recebe uma mensagem do Arduino para o PC
+            receber_mensagem_arduino(manipulador);
+            break;
+        case OPC_MOSTRAR:
+            mostrar_mensagens();
             break;
         case OPC_SAIR:
             printf("Saindo...\n");
-            CloseHandle(hSerial); // Fecha a porta serial
-            return 0;             // Sai do programa
-        default:
-            printf("Opção inválida! Tente novamente.\n");
             break;
+        default:
+            printf("Opcao invalida. Tente novamente.\n");
         }
-    }
+    } while (opcao != OPC_SAIR);
+
+    liberar_lista(lista_mensagens);
+    CloseHandle(manipulador); // Fecha a porta serial
+
+    return 0;
 }
